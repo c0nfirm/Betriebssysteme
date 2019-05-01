@@ -8,9 +8,7 @@ typedef int bool;                   /*boolean*/
 #define true 1
 #define false 0
 
-char pass[9];
 char newLine[]="\n";
-char clear[]="";
 bool run = true;
 
 /*Methods*/
@@ -20,7 +18,7 @@ void printC(char ch){               /*print character to screen*/
         "int $0x10" :: "r"(ch));    /*interrupt 10h (video services and r = character to print*/
 }
 
-/*fehlerhaft, wartet nicht auf user input vor verrbeitung*/
+/*fehlerhaft, wartet nicht auf user input vor verarbeitung*/
 char get_input(){                   /*Get keyboard input*/
     char c;                         /*variable to save keyboard input into*/
     asm volatile(
@@ -51,38 +49,35 @@ void print_pass(){
     printC(46);
 }
 
-//char* hidden_pass_input(){
-//    for(int i = 0; i<=8; i++){
-//            char tmp = get_input();
-//            pass[i]=tmp;
-//            print_pass();
-//            if (tmp == 13) {
-//                break;
-//            }
-//    }
-//    print_string(newLine, 2);
-//    return pass;
-//}
+int hidden_pass_input(){ //only works with return type int for some reason (every enter reboots?!)
+    char pass[9];
+    for(int i = 0; i<=8; i++){
+            char tmp = get_input();
+            if (i == 0 && tmp == 13) {
+                reboot(); //nichts eingelesen und enter
+            }
+            pass[i]=tmp;
+            if (tmp == 13) { //shorter password than maxsize
+                print_string(newLine, 2);
+                print_string(pass, i);
+                return 1;
+            }
+            pass[i]=tmp;
+            print_pass(); //printed die punkte
+            
+    }
+    print_string(newLine, 2);
+    print_string(pass, 8);
+    return 0;
+}
 
 void os(){
     print_string(newLine,2);
-    
-    for(int i = 0; i<8; i++){
-        char tmp = get_input();
-        switch (tmp) {
-            case 13:    print_string(newLine, 2);
-                        print_string(pass, i+1);
-                        break;
-        }
-        print_pass();
-        pass[i]=tmp;
+
+    while (run) {
+        hidden_pass_input();
+        print_string(newLine, 2);
     }
-    
-    print_string(newLine, 2);
-    if (get_input() == 13) {
-        print_string(pass, 8);
-    }
-    print_string(newLine, 2);
 }
 
 void main(void){
