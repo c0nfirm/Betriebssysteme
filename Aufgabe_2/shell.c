@@ -30,7 +30,7 @@ int (*tools_func[]) (char **) = {
     &shell_cd,
     &shell_wait,
     &shell_exit
-};
+};/*returns the nmber of tools*/
 int shell_num_tools(){
     return sizeof(tools) / sizeof(char *);
 }
@@ -48,9 +48,9 @@ int shell_cd(char **args){
         if(chdir(args[1]) != 0){
             perror("Shell");
         }
-     }
+    }
 
-     return 1;
+    return 1;
 }
 
 /*              WAIT Command
@@ -67,8 +67,8 @@ int shell_wait(char **args){
 int shell_exit(char **args){
     return 0;
 }
-/*Reading INPUT Line*/
 
+/*Reading INPUT Line*/
 /*
     Launch a programm and wait for its termination
     returns 1 to continue execution
@@ -213,5 +213,8 @@ void loop(){
 }
 
 int main(void){
-	return 0;
+	/*shell command loop*/
+	loop();
+	
+	return EXIT_SUCCESS;
 }
