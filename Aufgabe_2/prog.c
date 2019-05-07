@@ -3,13 +3,11 @@
 #include <time.h>
 #include <unistd.h>
 
-static unsigned int hash(const void* key, size_t size)
-{
+static unsigned int hash(const void* key, size_t size){
 	const char* ptr = key;
 	unsigned int hval;
 	
-	for (hval = 0x811c9dc5u; size --> 0; ++ptr)
-	{
+	for (hval = 0x811c9dc5u; size --> 0; ++ptr){
 		hval ^= *ptr;
 		hval *= 0x1000193u;
 	}
@@ -17,13 +15,11 @@ static unsigned int hash(const void* key, size_t size)
 	return hval;
 }
 
-static inline int roll(int sides)
-{
+static inline int roll(int sides){
 	return rand() / (RAND_MAX + 1.0) * sides;
 }
 
-int main(int argc, const char* argv[])
-{
+int main(int argc, const char* argv[]){
 	int rc, delay;
 	time_t now = time(0);
 	
@@ -31,8 +27,7 @@ int main(int argc, const char* argv[])
 	srand(hash(&now, sizeof(now)));
 	
 	/* determine exit code and time delay */
-	switch (argc)
-	{
+	switch (argc){
 	default:
 		delay = atoi(argv[1]);
 		rc = atoi(argv[2]);
