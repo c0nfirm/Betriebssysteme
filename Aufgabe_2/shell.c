@@ -74,7 +74,7 @@ int shell_exit(char **args){
     returns 1 to continue execution
 */
 int launch(char **args){
-    pid_t pid;/*,wpid*/
+    pid_t pid;
     int state;
 
     pid = fork();
@@ -91,7 +91,7 @@ int launch(char **args){
         }else{
             /*Parent Process*/
             do{
-                // = waitpid(pid, &state, WUNTRACED);		/*wpid wird als unused vom compiler angemerkt*/
+                waitpid(pid, &state, WUNTRACED);
             }   while(!WIFEXITED(state) && !WIFSIGNALED(state));
          }
      }
@@ -215,6 +215,6 @@ void loop(){
 int main(void){
 	/*shell command loop*/
 	loop();
-	
+
 	return EXIT_SUCCESS;
 }
