@@ -12,7 +12,7 @@
 #include "array.h"
 
 #define SHELL_KEY_BUFF_SIZE 64
-#define SHELL_KEY_DELIM "\t\r\n\a"
+#define SHELL_KEY_DELIM "\t,\r,\n,\a, "
 
 /*function declrations for shell commands*/
 int shell_cd(char **args);
@@ -44,8 +44,11 @@ int shell_num_tools(){
 int shell_cd(char **args){
     if(args[1] == NULL){
         fprintf(stderr, "Shell: expected argument to \"cd\"\n");
-    }else{
-        if(chdir(args[1]) != 0){
+    }
+    else
+    {
+        if (chdir(args[1]) != 0)
+        {
             perror("Shell");
         }
     }
@@ -81,7 +84,7 @@ int launch(char **args){
     if(pid == 0){
         /*Child Process*/
         if(execvp(args[0], args) == -1){
-            perror("Shell");
+            perror("Shellchild");
         }
         exit(EXIT_FAILURE);
     }else{
@@ -103,7 +106,6 @@ int launch(char **args){
 */
 int execute(char **args){
     int i;
-
     if(args[0] == NULL){
         /*empty command was entered*/
         return 1;
@@ -189,32 +191,59 @@ char **split_line(char *line){
 /*      Shell LOOP
     getting user input and executes it
 */
-void loop(){
+char *rel_wd(char *current, char *start)
+{
+    char *ret = calloc(1000, sizeof(char));
+    if (strcmp(current, start) == 0) //wir sind im geleichen verzeichniss wo wir gestartet sind
+    {
+        strcpy(ret, "./");
+        return ret;
+    }
+    if (strstr(current, start) != 0) //current > start, also zb. wir sind in /dir
+    {
+        strcpy(ret, current + strlen(start) + 1);
+        strcat(ret, "/");
+        return ret;
+    }
+    int i = 0;
+    while (memcmp(start, current, i + 1) == 0) //abziehen von gleichen substring am anfang
+    {
+        i++;
+    }
+    while (strchr(start + i, '/') != 0) //ersetzen von ebenen nach oben mit "../"
+    {
+        start = strchr(start + i, '/');
+        strcat(ret, "../");
+    }
 
-/*      Main function
-    argc = argument count and
-    argv = argument vector
-    returns a status code
-*/
+    strcat(ret, current + i); //andere pfade anhaengen
+    return ret;
+}
 
+int  main(int argc, char *argv[]){
+	/*shell command loop*/
+	//loop();
+    
     char *line;
     char **args;
     int state;
+    char start[1000];
+    getcwd(start,1000);
 
     do{
-        printf("./>");
+        char temp[1000];
+        char * ptemp;
+        getcwd(temp,1000);
+        ptemp = rel_wd(temp,start);
+        printf(strcat(ptemp,">"));
         line = read_line();
         args = split_line(line);
         state = execute(args);
 
         free(line);
         free(args);
+        free(ptemp);
     } while(state);
-}
-
-int main(void){
-	/*shell command loop*/
-	loop();
 
 	return EXIT_SUCCESS;
 }
