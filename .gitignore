@@ -12,3 +12,6 @@ Aufgabe_2/shell.o
 Aufgabe_2/array.o
 Aufgabe_2/shell
 Aufgabe_2/prog
+*/.vscode/*
+*.exe
+*.exe.stackdump
