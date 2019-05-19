@@ -16,7 +16,6 @@
 
 /*function declrations for shell commands*/
 int shell_cd(char **args);
-int shell_wait(char **args);
 int shell_exit(char **args);
 
 /*list of aviable commands*/
@@ -28,13 +27,24 @@ char *tools[] = {
 /*corresponding functions to commands above*/
 int (*tools_func[]) (char **) = {
     &shell_cd,
-    &shell_wait,
     &shell_exit
 };/*returns the nmber of tools*/
 int shell_num_tools(){
     return sizeof(tools) / sizeof(char *);
 }
+int stopwait = 0; // if 0 ctrl+c stops shell,if 1 stops wait by setting it to 0
 
+void sig_handler(int signr)
+{
+    if (stopwait == 1)
+    {
+        stopwait = 0;
+    }
+    else
+    {
+        exit(-1);
+    }
+}
 /*command Function implementation*/
 
 /*         Change Directory Command
@@ -59,7 +69,49 @@ int shell_cd(char **args){
 /*              WAIT Command
         returns 1 to continue execution
 */
-int shell_wait(char **args){
+int shell_wait(char **args, int argcount)
+{
+    if (argcount == 1)
+    {
+        fprintf(stderr, "Shell: expected argument for \"wait\"\n");
+    }
+    else
+    {
+        int state;
+        int finished_count = 0;
+        stopwait = 1;
+        while (stopwait == 1)
+        {
+            pid_t cpid = waitpid(-1, &state, 0);
+            for (int i = 0; i < argcount; i++)
+            {
+                if (atoi(args[i]) == (int)cpid)
+                {
+                    if (WIFEXITED(state) != 0)
+                    {
+                        printf("[%d] TERMINATED\n", cpid);
+                    }
+                    else if (WIFSIGNALED(state) != 0)
+                    {
+                        printf("[%d] SIGNALED\n", cpid);
+                    }
+                    else if (WCOREDUMP(state) != 0)
+                    {
+                        printf("[%d] COREDUMP\n", cpid);
+                    }
+                    else if (WSTOPSIG(state) != 0)
+                    {
+                        printf("[%d] STOPSIG\n", cpid);
+                    }
+                    printf("[%d] EXIT STATUS: %d\n", cpid, WEXITSTATUS(state));
+                    finished_count++;
+                }
+            }
+            if (finished_count == argcount-1)
+                return 1;
+        }
+        printf("WAIT interrupted!\n");
+    }
     return 1;
 }
 
@@ -80,46 +132,103 @@ int launch(char **args){
     pid_t pid;
     int state;
 
+    printf("command is %s \n", args[0]);
     pid = fork();
-    if(pid == 0){
+    if (pid == 0)
+    {
         /*Child Process*/
-        if(execvp(args[0], args) == -1){
-            perror("Shellchild");
+        if (execvp(args[0], args) == -1) //path dir
+        {
+            if (execv(args[0], args) == -1) //current dir
+            {
+                perror("Shellchild");
+            }
         }
         exit(EXIT_FAILURE);
-    }else{
-        if(pid < 0){
+    }
+    else
+    {
+        if (pid < 0)
+        {
             /*Forking Error*/
             perror("Shell");
-        }else{
+        }
+        else
+        {
             /*Parent Process*/
-            do{
+            do
+            {
                 waitpid(pid, &state, WUNTRACED);
-            }   while(!WIFEXITED(state) && !WIFSIGNALED(state));
-         }
-     }
-     return 1;
+            } while (!WIFEXITED(state) && !WIFSIGNALED(state));
+        }
+    }
+    return 1;
+}
+int launch_background(char **args){
+    pid_t pid;
+    pid = fork();
+    if (pid == 0)
+    {
+        /*Child Process*/
+        if (execvp(args[0], args) == -1) //path dir
+        {
+            if (execv(args[0], args) == -1) //current dir
+            {
+                perror("Shellchild");
+            }
+        }
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        if (pid < 0)
+        {
+            /*Forking Error*/
+            perror("Shell");
+        }
+        else
+        {
+            /*Parent Process*/
+            printf("[%d]\n", (int) pid);
+        }
+    }
+    return 1;
+
 }
 /*
     executes shell command or launch a programm
     returns 1 if shell should continue or 0 if it should be terminated
 */
-int execute(char **args){
+int execute(char **args,int argcount){
     int i;
-    printf(args[0]);
-    printf("\n");
     if(args[0] == NULL){
         /*empty command was entered*/
         return 1;
     }
 
     /*execites a specified shell command*/
+    if(strcmp(args[0], "wait") == 0){
+        return shell_wait(args,argcount);
+    }
     for(i = 0; i < shell_num_tools(); i++){
         if(strcmp(args[0], tools[i]) == 0){
             return (*tools_func[i])(args);
         }
     }
-
+    for (int i = 0; i < argcount; i++)
+    {
+        if (strchr(args[i],'|') != 0)
+        {
+            printf("pipemode\n");
+            return 1;
+        }
+        if (strchr(args[i],'&') != 0) //background mode
+        {
+            return launch_background(args);
+        }
+        
+    }
+    
     /*launches a specified programm*/
     return launch(args);
 }
@@ -165,7 +274,7 @@ char *read_line(void){
 /*  Splits the input line into tokens
     returns a null terminated array of tokens
 */
-char **split_line(char *line){
+char **split_line(char *line,int* argcount){
     int buff_size = SHELL_KEY_BUFF_SIZE, posi = 0;
     char **keys = malloc(buff_size * sizeof(char*));
     char *key;
@@ -188,38 +297,12 @@ char **split_line(char *line){
     }
 
     keys[posi] = NULL;
+    *argcount = posi;
     return keys;
 }
 /*      Shell LOOP
     getting user input and executes it
 */
-void loop(){
-
-/*      Main function
-    argc = argument count and
-    argv = argument vector
-    returns a status code
-*/
-
-    char *line;
-    char **args;
-    int state;
-
-    do{
-        char temp[1000];
-        char * ptemp;
-        //strcpy(temp,current_path);
-        getcwd(temp,1000);
-        ptemp = strrchr(temp, '/');
-        printf(strcat(ptemp,"/>"));
-        line = read_line();
-        args = split_line(line);
-        state = execute(args);
-
-        free(line);
-        free(args);
-    } while(state);
-}
 char *rel_wd(char *current, char *start)
 {
     char *ret = calloc(1000, sizeof(char));
@@ -252,26 +335,31 @@ char *rel_wd(char *current, char *start)
 int  main(int argc, char *argv[]){
 	/*shell command loop*/
 	//loop();
-    
+    signal(SIGINT, sig_handler);
     char *line;
     char **args;
     int state;
+    int argcount;
     char start[1000];
+    char current_wd[1000];
     getcwd(start,1000);
 
     do{
-        char temp[1000];
-        char * ptemp;
-        getcwd(temp,1000);
-        ptemp = rel_wd(temp,start);
-        printf(strcat(ptemp,">"));
+
+        char * pointer_current_wd;
+        getcwd(current_wd,1000);
+        pointer_current_wd = rel_wd(current_wd,start);
+        printf(strcat(pointer_current_wd,">"));
+
+
         line = read_line();
-        args = split_line(line);
-        state = execute(args);
+        args = split_line(line,&argcount);
+        state = execute(args,argcount);
 
         free(line);
         free(args);
-        free(ptemp);
+        free(pointer_current_wd);
+        argcount = 0;
     } while(state);
 
 	return EXIT_SUCCESS;
