@@ -244,7 +244,7 @@ int execute(char **args, int argcount)
             if (child == 0)
             {
                 args = &(args[i + 1]);
-                argcount = argcount - i - 2;
+                argcount = argcount - i - 1;
                 i = 0;
                 dup2(pdes[0], 0); // this "dup"s the read-end of the pipe onto STDIN
                 close(pdes[0]);
@@ -262,6 +262,7 @@ int execute(char **args, int argcount)
         }
         if (strchr(args[i], '&') != 0) //background mode
         {
+            args[i]= 0;
             return launch_background(args);
         }
     }
