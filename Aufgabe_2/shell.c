@@ -22,18 +22,17 @@ int shell_exit(char **args);
 char *tools[] = {
     "cd",
     "wait",
-    "exit"
-};
+    "exit"};
 /*corresponding functions to commands above*/
-int (*tools_func[]) (char **) = {
+int (*tools_func[])(char **) = {
     &shell_cd,
-    &shell_exit
-};/*returns the nmber of tools*/
-int shell_num_tools(){
+    &shell_exit}; /*returns the nmber of tools*/
+int shell_num_tools()
+{
     return sizeof(tools) / sizeof(char *);
 }
 int stopwait = 0; // if 0 ctrl+c stops shell,if 1 stops wait by setting it to 0
-
+int saves_stdout;
 void sig_handler(int signr)
 {
     if (stopwait == 1)
@@ -42,17 +41,26 @@ void sig_handler(int signr)
     }
     else
     {
+        kill(0, SIGKILL);
         exit(-1);
     }
 }
+void die(const char *msg)
+{
+    perror(msg);
+    exit(EXIT_FAILURE);
+}
+
 /*command Function implementation*/
 
 /*         Change Directory Command
     args[0] =  "cd", args[1] = directory
     returns 1 to continue execution
 */
-int shell_cd(char **args){
-    if(args[1] == NULL){
+int shell_cd(char **args)
+{
+    if (args[1] == NULL)
+    {
         fprintf(stderr, "Shell: expected argument to \"cd\"\n");
     }
     else
@@ -107,7 +115,7 @@ int shell_wait(char **args, int argcount)
                     finished_count++;
                 }
             }
-            if (finished_count == argcount-1)
+            if (finished_count == argcount - 1)
                 return 1;
         }
         printf("WAIT interrupted!\n");
@@ -119,7 +127,8 @@ int shell_wait(char **args, int argcount)
             exit command
     allways returns 0 to terminate execution
 */
-int shell_exit(char **args){
+int shell_exit(char **args)
+{
     return 0;
 }
 
@@ -128,11 +137,10 @@ int shell_exit(char **args){
     Launch a programm and wait for its termination
     returns 1 to continue execution
 */
-int launch(char **args){
+int launch(char **args)
+{
     pid_t pid;
     int state;
-
-    printf("command is %s \n", args[0]);
     pid = fork();
     if (pid == 0)
     {
@@ -164,7 +172,8 @@ int launch(char **args){
     }
     return 1;
 }
-int launch_background(char **args){
+int launch_background(char **args)
+{
     pid_t pid;
     pid = fork();
     if (pid == 0)
@@ -189,82 +198,118 @@ int launch_background(char **args){
         else
         {
             /*Parent Process*/
-            printf("[%d]\n", (int) pid);
+            printf("[%d]\n", (int)pid);
         }
     }
     return 1;
-
 }
 /*
     executes shell command or launch a programm
     returns 1 if shell should continue or 0 if it should be terminated
 */
-int execute(char **args,int argcount){
+int execute(char **args, int argcount)
+{
     int i;
-    if(args[0] == NULL){
+    int pdes[2];
+    pid_t child;
+    if (args[0] == NULL)
+    {
         /*empty command was entered*/
         return 1;
     }
 
     /*execites a specified shell command*/
-    if(strcmp(args[0], "wait") == 0){
-        return shell_wait(args,argcount);
+    if (strcmp(args[0], "wait") == 0)
+    {
+        return shell_wait(args, argcount);
     }
-    for(i = 0; i < shell_num_tools(); i++){
-        if(strcmp(args[0], tools[i]) == 0){
+    for (i = 0; i < shell_num_tools(); i++)
+    {
+        if (strcmp(args[0], tools[i]) == 0)
+        {
             return (*tools_func[i])(args);
         }
     }
     for (int i = 0; i < argcount; i++)
     {
-        if (strchr(args[i],'|') != 0)
+        if (strchr(args[i], '|') != 0) //pipemode
         {
-            printf("pipemode\n");
-            return 1;
+
+            if (pipe(pdes) < 0)
+                die("pipe()");
+
+            if ((child = fork()) < 0)
+                die("fork()");
+
+            if (child == 0)
+            {
+                args = &(args[i + 1]);
+                argcount = argcount - i - 2;
+                i = 0;
+                dup2(pdes[0], 0); // this "dup"s the read-end of the pipe onto STDIN
+                close(pdes[0]);
+            }
+            else
+            {
+                /* parent process */
+                args[i] = 0;
+                argcount = i;
+                i--;
+
+                dup2(pdes[1], 1); // this "dup"s the write-end of the pipe onto STDOUT
+                close(pdes[1]);
+            }
         }
-        if (strchr(args[i],'&') != 0) //background mode
+        if (strchr(args[i], '&') != 0) //background mode
         {
             return launch_background(args);
         }
-        
     }
-    
+
     /*launches a specified programm*/
     return launch(args);
 }
 
 #define SHELL_BUFF_SIZE 1024
 /*reads input line from stdin and returns it*/
-char *read_line(void){
+char *read_line(void)
+{
     int buff_size = SHELL_BUFF_SIZE;
     int posi = 0;
     char *buff = malloc(sizeof(char) * buff_size);
     int c;
 
-    if(!buff){
+    if (!buff)
+    {
         fprintf(stderr, "Shell: Allocation Error!\n");
         exit(EXIT_FAILURE);
     }
 
-    while(1){
+    while (1)
+    {
         /*read a character*/
         c = getchar();
 
         /*when EOL, replace it with null character and return*/
-        if(c == EOF || c == '\n'){
+        if (c == EOF || c == '\n')
+        {
             buff[posi] = '\0';
             return buff;
-        }else{
+        }
+        else
+        {
             buff[posi] = c;
         }
 
         posi++;
 
         /*reallocate it buffer is exceeded*/
-        if(posi >= buff_size){
+        if (posi >= buff_size)
+        {
             buff_size += SHELL_BUFF_SIZE;
             buff = realloc(buff, buff_size);
-            if(!buff){
+            if (!buff)
+            {
                 fprintf(stderr, "Shell: Allocation Error!\n");
                 exit(EXIT_FAILURE);
             }
@@ -274,20 +319,24 @@ char *read_line(void){
 /*  Splits the input line into tokens
     returns a null terminated array of tokens
 */
-char **split_line(char *line,int* argcount){
+char **split_line(char *line, int *argcount)
+{
     int buff_size = SHELL_KEY_BUFF_SIZE, posi = 0;
-    char **keys = malloc(buff_size * sizeof(char*));
+    char **keys = malloc(buff_size * sizeof(char *));
     char *key;
 
     key = strtok(line, SHELL_KEY_DELIM);
-    while(key != NULL){
+    while (key != NULL)
+    {
         keys[posi] = key;
         posi++;
 
-        if(posi >= buff_size){
+        if (posi >= buff_size)
+        {
             buff_size += SHELL_KEY_BUFF_SIZE;
-            keys = realloc(keys, buff_size * sizeof(char*));
-            if(!keys){
+            keys = realloc(keys, buff_size * sizeof(char *));
+            if (!keys)
+            {
                 fprintf(stderr, "Allocation Error!\n");
                 exit(EXIT_FAILURE);
             }
@@ -332,9 +381,10 @@ char *rel_wd(char *current, char *start)
     return ret;
 }
 
-int  main(int argc, char *argv[]){
-	/*shell command loop*/
-	//loop();
+int main(int argc, char *argv[])
+{
+    /*shell command loop*/
+    //loop();
     signal(SIGINT, sig_handler);
     char *line;
     char **args;
@@ -342,25 +392,34 @@ int  main(int argc, char *argv[]){
     int argcount;
     char start[1000];
     char current_wd[1000];
-    getcwd(start,1000);
-
-    do{
-
-        char * pointer_current_wd;
-        getcwd(current_wd,1000);
-        pointer_current_wd = rel_wd(current_wd,start);
-        printf(strcat(pointer_current_wd,">"));
-
+    if (getcwd(start, 1000) == 0)
+    {
+        printf("Path too deep?!");
+        exit(-1);
+    }
+    do
+    {
+        saves_stdout = dup(1);
+        char *pointer_current_wd;
+        if (getcwd(current_wd, 1000) == 0)
+        {
+            printf("Path too deep?!");
+            exit(-1);
+        }
+        pointer_current_wd = rel_wd(current_wd, start);
+        printf("%s", strcat(pointer_current_wd, ">"));
 
         line = read_line();
-        args = split_line(line,&argcount);
-        state = execute(args,argcount);
+        args = split_line(line, &argcount);
+        state = execute(args, argcount);
 
         free(line);
         free(args);
         free(pointer_current_wd);
         argcount = 0;
-    } while(state);
+        dup2(saves_stdout, 1);
+        close(saves_stdout);
+    } while (state);
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
