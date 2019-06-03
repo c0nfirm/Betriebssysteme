@@ -49,7 +49,6 @@ void* (arrayPush)(void* self, size_t size)
 		
 		if (hdr == NULL)
 		{
-			fputs("out-of-memory error\n", stderr);
 			exit(-1);
 		}
 	}

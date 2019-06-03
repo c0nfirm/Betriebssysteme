@@ -1,22 +1,33 @@
 #!/usr/bin/make
 .SUFFIXES:
-.PHONY: all run clean
+.PHONY: all run pack clean
 .SILENT: run
 
-TAR = client server
-CFLAGS = -c -Os -Wall -Werror
+TAR = cli/client srv/server
+PCK = lab-3.zip
 
-%.o: %.c
-	$(CC) $(CFLAGS) $^ -o $@
-
-%: %.o
-	$(CC) -o $@ $^
+export CFLAGS = -std=gnu11 -c -g -Os -Wall -Werror
+export LFLAGS = -pthread
 
 all: $(TAR)
 
 run: all
-	./server&
-	./client
+	srv/server& echo $$! > .srv_pid
+	echo "Client Ready:"
+	cli/client
+	kill `cat .srv_pid`
+	$(RM) $(RMFILES) .srv_pid
+
+pack: clean
+	zip -r $(PCK) cli srv Makefile -x "*/.*"
 
 clean:
-	$(RM) $(RMFILES) $(TAR) *.o
+	@$(MAKE) -C cli clean
+	@$(MAKE) -C srv clean
+	$(RM) $(RMFILES) $(PCK)
+
+cli/client: $(wildcard cli/*.c) $(wildcard cli/*.h)
+	@$(MAKE) -C $(@D)
+
+srv/server: $(wildcard srv/*.c) $(wildcard srv/*.h)
+	@$(MAKE) -C $(@D)
