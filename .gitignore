@@ -17,3 +17,4 @@ Aufgabe_2/prog
 *.exe.stackdump
 *.zip
 *.o
+.vscode/*
