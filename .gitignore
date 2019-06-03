@@ -1,7 +1,6 @@
 Aufgabe_1/bootloader.bin
 Aufgabe_1/bootloader.elf
 Aufgabe_1/bootloader.o
-*.c
 Aufgabe_2/2018/Makefile
 Aufgabe_2/Beispiele/dup/Makefile
 Aufgabe_2/Beispiele/fork_example/Makefile
@@ -18,3 +17,4 @@ Aufgabe_2/prog
 *.zip
 *.o
 .vscode/*
+Aufgabe_2/test/*
