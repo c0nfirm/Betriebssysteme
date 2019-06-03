@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #define PORT 9000
 #define HOST "127.0.0.1"
@@ -277,7 +278,7 @@ int main()
             {
                 continue; // connection was interrupted?
             }
-            printf(buf);
+            printf("%s",buf);
         } while (1); //TODO close at some point
     }
     else
@@ -297,6 +298,7 @@ int main()
         } while (state);
         fclose(fh);
         printf("Client Exit\n");
+        kill(0, SIGKILL);
     }
 
     return 0;

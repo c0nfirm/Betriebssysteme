@@ -187,14 +187,18 @@ void launch(char **args)
 	}
 	return;
 }
-int get_filetranfer_socket()
+void server_get(char **args, FILE *fh)
 {
+	if (args[1] == NULL)
+	{
+		fprintf(stderr, "Need FileName \n");
+		/*empty command was entered*/
+		return;
+	}
 	struct sockaddr_in srv_addr, cli_addr;
 	int sockopt = 1;
 	socklen_t sad_sz = sizeof(struct sockaddr_in);
 	int sfd, cfd;
-	ssize_t bytes;
-	char buf[256];
 
 	srv_addr.sin_family = AF_INET;
 	srv_addr.sin_port = htons(PORT + 1);
@@ -215,17 +219,7 @@ int get_filetranfer_socket()
 	if (cfd < 0)
 		die("Couldn't accept incoming connection");
 
-	return sfd;
-}
-void server_get(char **args, FILE *fh)
-{
-	if (args[1] == NULL)
-	{
-		fprintf(stderr, "Need FileName \n");
-		/*empty command was entered*/
-		return;
-	}
-	int socket = get_filetranfer_socket();
+	int socket = sfd;
 	fh = fdopen(socket, "w");
 	FILE *file = fopen(args[1], "r");
 	fseek(file, 0, SEEK_END); // seek to end of file
